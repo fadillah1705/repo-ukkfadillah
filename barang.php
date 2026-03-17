@@ -1,54 +1,78 @@
 <?php
 $active_page = 'barang';
-include 'header.php'; // Di dalam header sudah ada session_start dan include conn.php
+include 'header.php'; 
 include 'sidebar.php';
 
 $primary_key = 'id_barang'; 
 $swal_msg = null;
 
-// --- PROSES HAPUS BARANG ---
-if (isset($_GET['hapus'])) {
-    $id_hapus = (int)$_GET['hapus'];
-    $cek_transaksi = $conn->query("SELECT id_transaksi FROM transaksi WHERE id_barang = $id_hapus LIMIT 1");
-    
-    if ($cek_transaksi->num_rows > 0) {
+// --- PROTEKSI LOGIKA (SERVER-SIDE) ---
+if (isset($_GET['hapus']) || isset($_POST['ubah_barang'])) {
+    if ($role !== 'admin') {
         $swal_msg = [
             'icon' => 'error', 
-            'title' => 'Gagal Menghapus!', 
-            'text' => 'Barang ini sudah memiliki riwayat transaksi. Silakan hapus transaksinya terlebih dahulu.'
+            'title' => 'Akses Ditolak!', 
+            'text' => 'Hanya Administrator yang memiliki izin untuk mengubah atau menghapus data.'
         ];
     } else {
-        $hapus = $conn->query("DELETE FROM barang WHERE id_barang = $id_hapus");
-        if ($hapus) {
-            $swal_msg = [
-                'icon' => 'success', 
-                'title' => 'Dihapus!', 
-                'text' => 'Data barang telah berhasil dihapus.', 
-                'redirect' => 'barang.php'
-            ];
+        
+        // --- PROSES HAPUS BARANG & RIWAYAT (Hanya Admin) ---
+        if (isset($_GET['hapus'])) {
+            $id_hapus = (int)$_GET['hapus'];
+            
+            // 1. Mulai Transaksi Database (agar konsisten)
+            $conn->begin_transaction();
+
+            try {
+                // 2. Hapus semua riwayat di tabel transaksi yang berhubungan dengan barang ini
+                $conn->query("DELETE FROM transaksi WHERE id_barang = $id_hapus");
+
+                // 3. Baru hapus barangnya dari tabel barang
+                $conn->query("DELETE FROM barang WHERE id_barang = $id_hapus");
+
+                // Jika semua lancar, simpan perubahan
+                $conn->commit();
+
+                $swal_msg = [
+                    'icon' => 'success', 
+                    'title' => 'Dihapus!', 
+                    'text' => 'Data barang dan semua riwayat transaksinya telah dibersihkan.', 
+                    'redirect' => 'barang.php'
+                ];
+            } catch (Exception $e) {
+                // Jika gagal, batalkan semua (rollback)
+                $conn->rollback();
+                $swal_msg = [
+                    'icon' => 'error', 
+                    'title' => 'Gagal!', 
+                    'text' => 'Terjadi kesalahan sistem saat menghapus data.'
+                ];
+            }
+        }
+
+        // --- PROSES EDIT BARANG (Hanya Admin) ---
+        if (isset($_POST['ubah_barang'])) {
+            $id = (int) $_POST['id'];
+            $nama = mysqli_real_escape_string($conn, $_POST['nama']);
+            $harga = (int) $_POST['harga'];
+            $cek = $conn->query("SELECT stok FROM barang WHERE id_barang = $id")->fetch_assoc();
+            $stok_maksimal = (int)$cek['stok'];
+            $s_baik  = max(0, (int)$_POST['stok_baik']);
+            $s_rusak = max(0, (int)$_POST['stok_rusak']);
+
+            if (($s_baik + $s_rusak) > $stok_maksimal) {
+                $swal_msg = ['icon' => 'error', 'title' => 'Gagal!', 'text' => "Total fisik melebihi stok sistem ($stok_maksimal)."];
+            } else {
+                $sql = "UPDATE barang SET nama = '$nama', harga = '$harga', stok_baik = '$s_baik', stok_rusak = '$s_rusak' WHERE id_barang = $id";
+                if ($conn->query($sql)) {
+                    $swal_msg = ['icon' => 'success', 'title' => 'Berhasil!', 'text' => 'Data barang telah diperbarui.', 'redirect' => 'barang.php'];
+                }
+            }
         }
     }
 }
 
-// --- PROSES EDIT BARANG ---
-if (isset($_POST['ubah_barang'])) {
-    $id = (int) $_POST['id'];
-    $nama = mysqli_real_escape_string($conn, $_POST['nama']);
-    $harga = (int) $_POST['harga'];
-    $cek = $conn->query("SELECT stok FROM barang WHERE id_barang = $id")->fetch_assoc();
-    $stok_maksimal = (int)$cek['stok'];
-    $s_baik  = max(0, (int)$_POST['stok_baik']);
-    $s_rusak = max(0, (int)$_POST['stok_rusak']);
-
-    if (($s_baik + $s_rusak) > $stok_maksimal) {
-        $swal_msg = ['icon' => 'error', 'title' => 'Gagal!', 'text' => "Total fisik melebihi stok sistem ($stok_maksimal)."];
-    } else {
-        $sql = "UPDATE barang SET nama = '$nama', harga = '$harga', stok_baik = '$s_baik', stok_rusak = '$s_rusak' WHERE id_barang = $id";
-        if ($conn->query($sql)) {
-            $swal_msg = ['icon' => 'success', 'title' => 'Berhasil!', 'text' => 'Data barang telah diperbarui.', 'redirect' => 'barang.php'];
-        }
-    }
-}
+// ... (Sisa kode tampilan ke bawah tetap sama dengan sebelumnya)
 
 // --- DATA STATISTIK ---
 $stat_total_aset  = $conn->query("SELECT SUM(stok * harga) as total FROM barang")->fetch_assoc()['total'] ?? 0;
@@ -56,9 +80,9 @@ $stat_total_jenis = $conn->query("SELECT COUNT(*) as jml FROM barang")->fetch_as
 $stat_total_baik  = $conn->query("SELECT SUM(stok_baik) as total FROM barang")->fetch_assoc()['total'] ?? 0; 
 $stat_total_rusak = $conn->query("SELECT SUM(stok_rusak) as total FROM barang")->fetch_assoc()['total'] ?? 0;
 
-// Cek jika sedang mode edit
+// Cek jika sedang mode edit (Hanya jika admin)
 $edit_data = null;
-if (isset($_GET['edit'])) {
+if (isset($_GET['edit']) && $role === 'admin') {
     $id = (int) $_GET['edit'];
     $res_edit = $conn->query("SELECT * FROM barang WHERE $primary_key=$id");
     if ($res_edit && $res_edit->num_rows > 0) {
@@ -75,9 +99,11 @@ $result = $conn->query("SELECT *, (stok * harga) as total_nilai FROM barang ORDE
             <h4 class="fw-bold m-0">Inventaris Barang</h4>
             <p class="text-muted small mb-0">Manajemen stok fisik dan kontrol kualitas.</p>
         </div>
+        <?php if ($role === 'admin'): ?>
         <button class="btn btn-primary rounded-pill px-4 fw-bold" onclick="window.location.href='transaksi_masuk.php'">
             <i class="fas fa-plus me-2"></i>Tambah Barang
         </button>
+        <?php endif; ?>
     </header>
 
     <div class="row g-3 mb-4">
@@ -107,7 +133,7 @@ $result = $conn->query("SELECT *, (stok * harga) as total_nilai FROM barang ORDE
         </div>
     </div>
 
-    <?php if ($edit_data): ?>
+    <?php if ($edit_data && $role === 'admin'): ?>
     <div class="card card-custom mb-4 border-top border-warning border-4 shadow-sm">
         <div class="card-body p-4">
             <div class="d-flex justify-content-between mb-3">
@@ -158,8 +184,12 @@ $result = $conn->query("SELECT *, (stok * harga) as total_nilai FROM barang ORDE
                         </td>
                         <td class="text-end fw-bold text-primary">Rp <?= number_format($d['total_nilai']) ?></td>
                         <td class="text-center">
-                            <a href="?edit=<?= $d[$primary_key] ?>" class="btn-action text-warning"><i class="fas fa-pen"></i></a>
-                            <a href="javascript:void(0)" class="btn-action text-danger btn-hapus" data-id="<?= $d[$primary_key] ?>" data-nama="<?= $d['nama'] ?>"><i class="fas fa-trash"></i></a>
+                            <?php if ($role === 'admin'): ?>
+                                <a href="?edit=<?= $d[$primary_key] ?>" class="btn-action text-warning"><i class="fas fa-pen"></i></a>
+                                <a href="javascript:void(0)" class="btn-action text-danger btn-hapus" data-id="<?= $d[$primary_key] ?>" data-nama="<?= $d['nama'] ?>"><i class="fas fa-trash"></i></a>
+                            <?php else: ?>
+                                <span class="text-muted small"><i class="fas fa-lock opacity-50"></i></span>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endwhile; ?>
