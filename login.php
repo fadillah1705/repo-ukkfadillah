@@ -1,33 +1,61 @@
 <?php
+// Memulai session agar data login bisa disimpan dan digunakan di halaman lain (seperti dashboard)
 session_start();
+
+// Menghubungkan ke file konfigurasi database
 require 'conn.php'; 
 
+// Variabel untuk menampung status login guna memicu notifikasi SweetAlert2 nantinya
 $swal_status = ""; 
 
+// Mengecek apakah tombol 'login' pada form sudah ditekan
 if (isset($_POST['login'])) {
-    // Kita ambil input dari form
+    
+    /** * 1. PENGAMBILAN & PEMBERSIHAN DATA (SECURITY)
+     * Menggunakan mysqli_real_escape_string untuk mencegah SQL Injection 
+     * (serangan yang menyisipkan perintah database berbahaya melalui input form).
+     */
     $input_user = mysqli_real_escape_string($conn, $_POST['username']);
     $email_user = mysqli_real_escape_string($conn, $_POST['email']);
+    
+    /**
+     * 2. ENKRIPSI PASSWORD
+     * Mengubah password input menjadi format MD5. 
+     * Catatan: Pastikan di database kamu, password juga disimpan dalam format MD5.
+     */
     $password   = md5($_POST['password']); 
 
-    // PERBAIKAN QUERY: 
-    // Kita cek apakah ada user yang (username-nya cocok ATAU email-nya cocok) DAN password-nya benar.
+    /**
+     * 3. LOGIKA VALIDASI GANDA (USERNAME/EMAIL)
+     * Query ini sangat fleksibel: user bisa login menggunakan Username ATAU Email.
+     * Logika: (Username cocok OR Email cocok) AND Password harus benar.
+     */
     $query = mysqli_query($conn, "SELECT * FROM users WHERE 
                                   (username='$input_user' OR gmail='$email_user') AND 
                                   password='$password'"); 
     
+    // Mengecek apakah hasil query menemukan baris data (user ditemukan)
     if (mysqli_num_rows($query) > 0) {
+        
+        // Mengambil data user tersebut dari database ke dalam array $data
         $data = mysqli_fetch_assoc($query);
         
-        $_SESSION['login'] = true;
-        $_SESSION['id_user'] = $data['id_user']; 
-        $_SESSION['username'] = $data['username'];
+        /**
+         * 4. PENYIMPANAN DATA KE SESSION
+         * Data ini akan 'menempel' selama user belum logout atau menutup browser.
+         * Digunakan untuk mengecek hak akses (role) dan menampilkan nama di dashboard.
+         */
+        $_SESSION['login']        = true;
+        $_SESSION['id_user']      = $data['id_user']; 
+        $_SESSION['username']     = $data['username'];
         $_SESSION['nama_lengkap'] = $data['nama_lengkap']; 
-        $_SESSION['role'] = $data['role']; 
+        $_SESSION['role']         = $data['role']; // Contoh: 'admin' atau 'petugas'
 
+        // Set status sukses untuk memicu SweetAlert sukses di bagian JavaScript
         $swal_status = "success";
+        
     } else {
-        // Jika gagal, kita cek manual di database apakah data itu memang ada
+        // Jika tidak ada data yang cocok, set status error
         $swal_status = "error";
     }
 }
@@ -42,6 +70,7 @@ if (isset($_POST['login'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
     <style>
         :root { --primary: #0ea5e9; --slate-bg: #f8fafc; }
         body { 
@@ -50,6 +79,7 @@ if (isset($_POST['login'])) {
             height: 100vh; display: flex; align-items: center; justify-content: center; 
             margin: 0;
         }
+        /* Card Login dengan gaya modern (rounded besar & bayangan halus) */
         .login-card {
             background: white; border-radius: 24px; padding: 40px;
             width: 100%; max-width: 420px;
@@ -118,6 +148,11 @@ if (isset($_POST['login'])) {
 
 <script>
 $(document).ready(function() {
+    /**
+     * Menerima variabel status dari PHP.
+     * Jika sukses, tampilkan popup hijau dan lempar user ke dashboard.
+     * Jika error, tampilkan popup merah dengan pesan akses ditolak.
+     */
     <?php if ($swal_status == "success"): ?>
         Swal.fire({
             icon: 'success',
@@ -132,7 +167,7 @@ $(document).ready(function() {
         Swal.fire({
             icon: 'error',
             title: 'Akses Ditolak',
-            text: 'Kombinasi Username, Email, dan Password tidak ditemukan!',
+            text: 'Kombinasi Username/Email dan Password salah!',
             confirmButtonColor: '#0ea5e9'
         });
     <?php endif; ?>
