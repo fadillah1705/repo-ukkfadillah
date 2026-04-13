@@ -1,8 +1,7 @@
 <?php
 // --- 1. SETUP HALAMAN ---
 $active_page = "transaksi_masuk";
-include 'header.php'; // Menggunakan font Plus Jakarta Sans agar estetika tetap terjaga
-
+include 'header.php'; 
 // --- 2. LOGIKA PROSES BARANG MASUK ---
 if (isset($_POST['tambah_barang_masuk'])) {
     $namas    = $_POST['nama'];
@@ -127,7 +126,7 @@ if (isset($_POST['tambah_barang_masuk'])) {
                 <tr>
                     <td class="ps-4">
                         <div class="fw-bold" style="font-size: 0.85rem;"><?= date('d M Y', strtotime($r['tanggal_transaksi'])) ?></div>
-                        <small class="text-muted" style="font-size: 0.75rem;"><?= date('H:i', strtotime($r['tanggal_transaksi'])) ?> WIB</small>
+                       
                     </td>
                     <td>
                         <span class="fw-bold text-dark"><?= htmlspecialchars($r['nama']) ?></span><br>

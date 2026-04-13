@@ -1,70 +1,74 @@
 <?php
-// --- 1. PENGATURAN HALAMAN ---
-$active_page = "admin"; // Menandai bahwa kita sedang di halaman Admin
-include 'header.php';   // Mengambil bagian atas website
-include 'sidebar.php';  // Mengambil menu samping
+// --- 1. PENGATURAN HALAMAN & TEMPLATE ---
+$active_page = "admin"; 
+include 'header.php';   
+include 'sidebar.php';  
 
-// --- 2. CEK KEAMANAN ---
-$id_log = $_SESSION['id_user'] ?? 0; // Mencatat siapa yang sedang login
+// --- 2. CEK KEAMANAN & INISIALISASI ---
+// Mengambil ID user dari session, jika tidak ada set ke 0
+$id_log = $_SESSION['id_user'] ?? 0; 
+// Variabel $status digunakan untuk memicu SweetAlert2 di bagian bawah halaman
+$status = ""; 
 
-// Jika yang masuk BUKAN admin, maka kembali ke halaman dashboard
+// Proteksi halaman: Hanya user dengan role 'admin' yang boleh mengakses
 if ($role !== 'admin') {
     echo "<script>window.location.href='dashboard.php';</script>";
     exit;
 }
 
-// --- 3. LOGIKA HAPUS PETUGAS ---
+// --- 3. LOGIKA HAPUS PETUGAS (Proses GET) ---
 if (isset($_GET['hapus'])) {
-    // Ambil ID orang yang mau dihapus
+    // Amankan input ID untuk mencegah SQL Injection
     $id_h = mysqli_real_escape_string($conn, $_GET['hapus']);
     
-    // Cek dulu: Apakah dia petugas atau admin?
+    // Ambil data user yang akan dihapus untuk cek role-nya
     $cek_h = $conn->query("SELECT role FROM users WHERE id_user = '$id_h'")->fetch_assoc();
     
-    // HANYA boleh hapus jika dia adalah petugas (Admin tidak bisa dihapus di sini)
+    // Validasi: Admin hanya boleh menghapus user dengan role 'petugas'
     if($cek_h['role'] == 'petugas') {
-        $conn->query("DELETE FROM users WHERE id_user = '$id_h'");
+        if($conn->query("DELETE FROM users WHERE id_user = '$id_h'")) {
+            $status = "hapus_sukses"; // Set status untuk SweetAlert
+        }
     }
-    // Balikkan ke halaman admin setelah hapus
-    echo "<script>window.location.href='admin.php';</script>";
 }
 
-// --- 4. LOGIKA UPDATE (EDIT DATA) ---
+// --- 4. LOGIKA UPDATE / EDIT USER (Proses POST) ---
 if (isset($_POST['update_user'])) {
-    $id_t = $_POST['id_user']; // ID user yang mau diedit
+    $id_t = $_POST['id_user'];
     $nama = mysqli_real_escape_string($conn, $_POST['nama_lengkap']);
     $user = mysqli_real_escape_string($conn, $_POST['username']);
     $mail = mysqli_real_escape_string($conn, $_POST['gmail']);
     
-    // Cek peran (role) target
+    // Cek role target yang akan diedit
     $cek_t = $conn->query("SELECT role FROM users WHERE id_user = '$id_t'")->fetch_assoc();
     
-    // Aturan: Admin boleh edit DIRINYA SENDIRI atau edit PETUGAS manapun
+    // Aturan edit: Admin bisa edit dirinya sendiri ATAU edit siapapun yang rolenya 'petugas'
     if ($id_t == $id_log || $cek_t['role'] == 'petugas') {
-        // Update data dasar
+        // Update data profil dasar
         $conn->query("UPDATE users SET nama_lengkap='$nama', username='$user', gmail='$mail' WHERE id_user='$id_t'");
         
-        // Khusus Password: Jika kotak password diisi, baru kita ganti di database
+        // Update password hanya jika kolom password diisi (opsional)
         if (!empty($_POST['password'])) {
-            $pass = md5($_POST['password']); // Enkripsi password
+            $pass = md5($_POST['password']); // Menggunakan MD5 sesuai permintaan awal
             $conn->query("UPDATE users SET password='$pass' WHERE id_user='$id_t'");
         }
+        $status = "update_sukses";
     }
-    echo "<script>window.location.href='admin.php';</script>";
 }
 
-// --- 5. LOGIKA TAMBAH (PENDAFTARAN BARU) ---
+// --- 5. LOGIKA TAMBAH PETUGAS BARU (Proses POST) ---
 if (isset($_POST['tambah_petugas'])) {
     $nama = mysqli_real_escape_string($conn, $_POST['nama_lengkap']);
     $user = mysqli_real_escape_string($conn, $_POST['username']);
     $mail = mysqli_real_escape_string($conn, $_POST['gmail']);
     $pass = md5($_POST['password']);
     
-    // Masukkan ke database dengan jabatan otomatis sebagai 'petugas'
-    $conn->query("INSERT INTO users (nama_lengkap, username, gmail, password, role) 
-                  VALUES ('$nama', '$user', '$mail', '$pass', 'petugas')");
-    
-    echo "<script>window.location.href='admin.php';</script>";
+    // Masukkan data baru dengan role otomatis 'petugas'
+    $check_user = $conn->query("INSERT INTO users (nama_lengkap, username, gmail, password, role) 
+                                VALUES ('$nama', '$user', '$mail', '$pass', 'petugas')");
+    if($check_user) {
+        $status = "tambah_sukses";
+    }
 }
 ?>
 
@@ -97,12 +101,12 @@ if (isset($_POST['tambah_petugas'])) {
                     </thead>
                     <tbody>
                         <?php
-                        // Ambil semua user dari database
+                        // Ambil semua data user, urutkan berdasarkan role (Admin biasanya muncul paling atas)
                         $query = $conn->query("SELECT * FROM users ORDER BY role ASC");
-                        $modal_data = []; // Untuk simpan data sementara modal edit
+                        $modal_data = []; // Penampung data untuk modal edit di luar loop table
                         
                         while($u = $query->fetch_assoc()):
-                            $modal_data[] = $u; 
+                            $modal_data[] = $u; // Simpan data per baris ke array
                             $is_admin = ($u['role'] == 'admin');
                             $is_me = ($u['id_user'] == $id_log);
                         ?>
@@ -144,8 +148,7 @@ if (isset($_POST['tambah_petugas'])) {
                                 <?php endif; ?>
 
                                 <?php if(!$is_admin): ?>
-                                    <a href="admin.php?hapus=<?= $u['id_user'] ?>" class="btn btn-sm btn-light text-danger border-0 p-2 px-3" 
-                                       onclick="return confirm('Yakin ingin hapus?')">
+                                    <a href="admin.php?hapus=<?= $u['id_user'] ?>" class="btn btn-sm btn-light text-danger border-0 p-2 px-3 btn-hapus">
                                         <i class="fas fa-trash fa-sm"></i>
                                     </a>
                                 <?php endif; ?>
@@ -195,5 +198,41 @@ if (isset($_POST['tambah_petugas'])) {
     </div>
 </div>
 <?php endforeach; ?>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// 1. Menampilkan notifikasi sukses berdasarkan variabel $status dari PHP
+<?php if ($status == "tambah_sukses"): ?>
+    Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Petugas baru telah ditambahkan.', confirmButtonColor: '#3085d6' }).then(() => { window.location.href='admin.php'; });
+<?php elseif ($status == "update_sukses"): ?>
+    Swal.fire({ icon: 'success', title: 'Diperbarui!', text: 'Data pengguna berhasil diubah.', confirmButtonColor: '#3085d6' }).then(() => { window.location.href='admin.php'; });
+<?php elseif ($status == "hapus_sukses"): ?>
+    Swal.fire({ icon: 'success', title: 'Terhapus!', text: 'Petugas telah dihapus dari sistem.', confirmButtonColor: '#3085d6' }).then(() => { window.location.href='admin.php'; });
+<?php endif; ?>
+
+// 2. Konfirmasi Hapus: Menghadang link hapus dan memunculkan popup konfirmasi
+document.querySelectorAll('.btn-hapus').forEach(button => {
+    button.addEventListener('click', function(e) {
+        e.preventDefault(); // Menghentikan link agar tidak langsung berpindah halaman
+        const urlHapus = this.getAttribute('href');
+        Swal.fire({
+            title: 'Yakin ingin menghapus?',
+            text: "Data petugas ini akan hilang permanen!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal',
+            reverseButtons: true
+        }).then((result) => {
+            // Jika user menekan tombol "Ya, Hapus!"
+            if (result.isConfirmed) {
+                window.location.href = urlHapus;
+            }
+        });
+    });
+});
+</script>
 
 <?php include 'footer.php'; ?>

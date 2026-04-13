@@ -79,57 +79,82 @@ for ($i = 6; $i >= 0; $i--) {
             <div style="height: 300px;"><canvas id="dailyStatsChart"></canvas></div>
         </div>
 
-        <div class="card card-custom border-0 shadow-sm rounded-4 overflow-hidden">
-            <div class="p-4 bg-white border-bottom d-flex justify-content-between align-items-center rounded-top-4">
-                <h5 class="fw-bold m-0 text-dark">Log Aktivitas Terkini</h5>
-                <span class="badge bg-light text-dark border px-3 rounded-pill small">20 Data Terakhir</span>
-            </div>
-            
-            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light small text-muted text-uppercase sticky-top" style="z-index: 10; background: #f8f9fa;">
-                        <tr>
-                            <th class="ps-4">TANGGAL</th>
-                            <th>NAMA BARANG</th>
-                            <th class="text-center">STATUS</th>
-                            <th class="text-center">QTY</th>
-                            <th class="text-end pe-4">NILAI TRANSAKSI</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php 
-                        // Tetap ambil 20 data agar fitur scroll terasa fungsinya
-                        $riwayat = $conn->query("SELECT t.tanggal_transaksi, t.status, b.nama, b.harga, t.jumlah as qty 
-                                                 FROM transaksi t JOIN barang b ON t.id_barang = b.id_barang 
-                                                 ORDER BY t.id_transaksi DESC LIMIT 20");
-                        if ($riwayat && $riwayat->num_rows > 0):
-                            while($r = $riwayat->fetch_assoc()):
-                                $isKeluar = ($r['status'] == 'keluar');
-                        ?>
-                        <tr>
-                            <td class="ps-4">
-                                <div class="fw-bold small"><?= date('d M Y', strtotime($r['tanggal_transaksi'])) ?></div>
-                                <small class="text-muted" style="font-size: 0.7rem;"><?= date('H:i', strtotime($r['tanggal_transaksi'])) ?> WIB</small>
-                            </td>
-                            <td>
-                                <div class="fw-bold text-dark"><?= htmlspecialchars($r['nama']) ?></div>
-                                <small class="text-muted">@ Rp <?= number_format($r['harga']) ?></small>
-                            </td>
-                            <td class="text-center">
-                                <span class="badge rounded-pill px-3 <?= $isKeluar ? 'bg-danger text-white' : 'bg-success text-white' ?>">
-                                    <?= strtoupper($r['status']) ?>
-                                </span>
-                            </td>
-                            <td class="text-center fw-bold"><?= number_format(abs($r['qty'])) ?></td>
-                            <td class="text-end pe-4 fw-bold text-primary">Rp <?= number_format(abs($r['qty'] * $r['harga'])) ?></td>
-                        </tr>
-                        <?php endwhile; else: ?>
-                        <tr><td colspan="5" class="text-center py-5 text-muted">Belum ada aktivitas hari ini.</td></tr>
+       <div class="card card-custom border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="p-4 bg-white border-bottom d-flex justify-content-between align-items-center rounded-top-4">
+        <h5 class="fw-bold m-0 text-dark">Log Aktivitas Terkini</h5>
+        <span class="badge bg-light text-dark border px-3 rounded-pill small">Data Terakhir</span>
+    </div>
+    
+    <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light small text-muted text-uppercase sticky-top" style="z-index: 10; background: #f8f9fa;">
+                <tr>
+                    <th class="ps-4" style="width: 150px;">TANGGAL</th>
+                    <th>NAMA BARANG</th>
+                    <th class="text-center" style="width: 120px;">STATUS</th>
+                    <th class="text-center" style="width: 100px;">QTY</th>
+                    <th class="text-end pe-4" style="width: 180px;">NILAI TRANSAKSI</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php 
+                $riwayat = $conn->query("SELECT t.tanggal_transaksi, t.status, b.nama, b.harga, t.jumlah as qty 
+                                         FROM transaksi t JOIN barang b ON t.id_barang = b.id_barang 
+                                         ORDER BY t.id_transaksi DESC LIMIT 10");
+                if ($riwayat && $riwayat->num_rows > 0):
+                    while($r = $riwayat->fetch_assoc()):
+                        $isKeluar = ($r['status'] == 'keluar');
+                ?>
+                <tr>
+                    <td class="ps-4">
+                        <div class="fw-bold text-secondary" style="font-size: 0.85rem;">
+                            <?= date('d M Y', strtotime($r['tanggal_transaksi'])) ?>
+                        </div>
+                    </td>
+                    
+                    <td>
+                        <div style="max-width: 250px;">
+                            <div class="fw-bold text-dark text-truncate" title="<?= htmlspecialchars($r['nama']) ?>" style="font-size: 0.95rem;">
+                                <?= htmlspecialchars($r['nama']) ?>
+                            </div>
+                            <div class="text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                                Harga Satuan: <span class="text-primary fw-medium">Rp <?= number_format($r['harga']) ?></span>
+                            </div>
+                        </div>
+                    </td>
+                    
+                    <td class="text-center">
+                        <?php if($isKeluar): ?>
+                            <span class="badge rounded-pill px-3 py-2" 
+                                  style="background-color: #fee2e2; color: #ef4444; border: 1px solid #fecaca; font-size: 0.7rem; width: 85px; letter-spacing: 0.5px;">
+                                KELUAR
+                            </span>
+                        <?php else: ?>
+                            <span class="badge rounded-pill px-3 py-2" 
+                                  style="background-color: #dcfce7; color: #10b981; border: 1px solid #bbf7d0; font-size: 0.7rem; width: 85px; letter-spacing: 0.5px;">
+                                MASUK
+                            </span>
                         <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                    </td>
+
+                    <td class="text-center">
+                        <div class="d-inline-block px-2 py-1 rounded-2 fw-bold" 
+                             style="background-color: #f1f5f9; color: #475569; font-size: 0.85rem; min-width: 40px; border: 1px solid #e2e8f0;">
+                            <?= number_format(abs($r['qty'])) ?>
+                        </div>
+                    </td>
+
+                    <td class="text-end pe-4 fw-bold text-primary" style="font-size: 0.95rem;">
+                        Rp <?= number_format(abs($r['qty'] * $r['harga'])) ?>
+                    </td>
+                </tr>
+                <?php endwhile; else: ?>
+                <tr><td colspan="5" class="text-center py-5 text-muted">Belum ada aktivitas.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
     </div>
 </main>
 
@@ -142,33 +167,69 @@ new Chart(ctx, {
         labels: <?= json_encode($labels) ?>,
         datasets: [
             {
-                label: 'Barang Masuk',
+                // Bagian ini mengunci nama yang muncul di Legend (atas) & Tooltip (saat kursor diarahkan)
+                label: 'Barang Masuk', 
                 data: <?= json_encode($data_masuk_7hari) ?>,
                 borderColor: '#10b981',
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6
             },
             {
-                label: 'Barang Keluar',
+                // Bagian ini juga dikunci agar tidak berubah menjadi "Keluar" saja
+                label: 'Barang Keluar', 
                 data: <?= json_encode($data_keluar_7hari) ?>,
                 borderColor: '#ef4444',
                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6
             }
         ]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'top' } },
+        // Ini agar saat kursor diarahkan, tampilan grafik tidak goyang (stabil)
+        interaction: {
+            intersect: false,
+            mode: 'index',
+        },
+        plugins: { 
+            legend: { 
+                position: 'top',
+                labels: {
+                    // Memastikan teks legend tidak terpotong
+                    boxWidth: 40,
+                    padding: 20,
+                    font: {
+                        size: 13,
+                        weight: '600'
+                    }
+                }
+            },
+            tooltip: {
+                // Menampilkan kotak hitam yang rapi
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleFont: { size: 14, weight: 'bold' },
+                bodyFont: { size: 13 },
+                padding: 12,
+                cornerRadius: 8,
+                displayColors: true // Munculkan kotak warna di dalam tooltip
+            }
+        },
         scales: {
-            y: { beginAtZero: true, grid: { display: false } },
-            x: { grid: { display: false } }
+            y: { 
+                beginAtZero: true, 
+                grid: { borderDash: [5, 5], color: '#e2e8f0' } 
+            },
+            x: { 
+                grid: { display: false } 
+            }
         }
     }
 });
 </script>
-
-<?php include 'footer.php'; ?>
