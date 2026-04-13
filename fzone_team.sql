@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3307
--- Generation Time: Feb 24, 2026 at 11:59 PM
+-- Generation Time: Apr 13, 2026 at 02:10 AM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.16
 
@@ -33,27 +33,27 @@ CREATE TABLE `barang` (
   `stok` int DEFAULT NULL,
   `harga` int DEFAULT NULL,
   `stok_baik` int DEFAULT '0',
-  `stok_rusak` int DEFAULT '0'
+  `stok_rusak` int DEFAULT '0',
+  `is_active` tinyint(1) DEFAULT '1'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `barang`
 --
 
-INSERT INTO `barang` (`id_barang`, `nama`, `stok`, `harga`, `stok_baik`, `stok_rusak`) VALUES
-(26, 'lampu belajar', 111, 100000, 111, 0),
-(27, 'laptop', 130, 580000, 130, 0),
-(28, 'jam dinding', 102, 35000, 102, 0),
-(29, 'meja', 200, 43000, 200, 0),
-(30, 'baju', 200, 200000, 200, 0),
-(31, 'handphone', 144, 800000, 144, 0),
-(32, 'jam tangan', 12, 20000, 12, 0),
-(33, 'sarung ', 34, 130000, 34, 0),
-(34, 'televisi', 45, 460000, 45, 0),
-(35, 'sapu lidi', 12, 20000, 12, 0),
-(36, 'sofa', 122, 100000, 122, 0),
-(37, 'gelas', 28, 26000, 28, 0),
-(38, 'piring', 87, 15000, 87, 0);
+INSERT INTO `barang` (`id_barang`, `nama`, `stok`, `harga`, `stok_baik`, `stok_rusak`, `is_active`) VALUES
+(26, 'lampu belajar', 111, 100000, 111, 0, 1),
+(27, 'laptop', 130, 580000, 130, 0, 1),
+(28, 'jam dinding', 90, 35000, 90, 0, 1),
+(29, 'meja', 200, 43000, 200, 0, 1),
+(30, 'baju', 168, 200000, 168, 0, 1),
+(31, 'handphone', 105, 800000, 105, 0, 1),
+(32, 'jam tangan', 12, 20000, 12, 0, 1),
+(33, 'sarung ', 34, 130000, 34, 0, 1),
+(34, 'televisi', 45, 460000, 45, 0, 1),
+(42, 'botol', 8, 12000, 8, 0, 1),
+(43, 'tissue', 10, 15000, 10, 0, 0),
+(44, 'sisir', 20, 5000, 20, 0, 0);
 
 -- --------------------------------------------------------
 
@@ -88,10 +88,17 @@ INSERT INTO `transaksi` (`id_transaksi`, `id_user`, `id_barang`, `jumlah`, `tang
 (41, 5, 34, 65, '2026-02-04', 'masuk'),
 (42, 5, 34, 20, '2026-02-04', 'keluar'),
 (43, 5, 27, 100, '2026-02-04', 'keluar'),
-(44, 7, 35, 12, '2026-02-23', 'masuk'),
-(45, 5, 36, 122, '2026-02-23', 'masuk'),
-(46, 5, 37, 28, '2026-02-23', 'masuk'),
-(47, 5, 38, 87, '2026-02-23', 'masuk');
+(48, 7, 30, 20, '2026-03-17', 'keluar'),
+(50, 7, 31, 11, '2026-03-23', 'keluar'),
+(51, 5, 31, 4, '2026-04-12', 'keluar'),
+(52, 5, 30, 12, '2026-04-12', 'keluar'),
+(53, 5, 31, 13, '2026-04-12', 'keluar'),
+(56, 5, 42, 9, '2026-04-12', 'masuk'),
+(57, 5, 43, 10, '2026-04-12', 'masuk'),
+(58, 5, 44, 20, '2026-04-12', 'masuk'),
+(59, 5, 28, 12, '2026-04-12', 'keluar'),
+(60, 5, 42, 1, '2026-04-12', 'keluar'),
+(61, 5, 31, 11, '2026-04-12', 'keluar');
 
 -- --------------------------------------------------------
 
@@ -115,8 +122,8 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id_user`, `username`, `nama_lengkap`, `gmail`, `role`, `password`) VALUES
 (5, 'admin', 'Admin 1', 'admin@gmail.com', 'admin', '0192023a7bbd73250516f069df18b500'),
 (6, 'admin2', 'Admin 2', 'admin2@gmail.com', 'admin', '1844156d4166d94387f1a4ad031ca5fa'),
-(7, 'petugas', 'Petugas 1', 'petugas@gmail.com', 'petugas', 'b53fe7751b37e40ff34d012c7774d65f'),
-(8, 'petugas2', 'Petugas 2', 'petugas2@gmail.com', 'petugas', '4a3ad0dbfcbc623c35079e660e38b1c2');
+(7, 'petugas1', 'Petugas 1', 'petugas@gmail.com', 'petugas', '570c396b3fc856eceb8aa7357f32af1a'),
+(10, 'petugas3', 'Petugas 3', 'petugas3@gmail.com', 'petugas', 'bf9c3642b0d5c8cfcf7f9996cd79f3d5');
 
 --
 -- Indexes for dumped tables
@@ -150,19 +157,19 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `barang`
 --
 ALTER TABLE `barang`
-  MODIFY `id_barang` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
+  MODIFY `id_barang` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
 
 --
 -- AUTO_INCREMENT for table `transaksi`
 --
 ALTER TABLE `transaksi`
-  MODIFY `id_transaksi` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
+  MODIFY `id_transaksi` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=62;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id_user` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id_user` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- Constraints for dumped tables
